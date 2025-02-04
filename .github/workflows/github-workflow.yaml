@@ -31,11 +31,35 @@ jobs:
       if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
       run: |
         mkdir -p ~/.cache/ollama
-        # Download the latest release directly from GitHub
-        LATEST_RELEASE=$(curl -s https://api.github.com/repos/ollama/ollama/releases/latest | grep "tag_name" | cut -d '"' -f 4)
+        # Download the latest release directly from GitHub with better error handling
+        echo "Fetching latest Ollama release..."
+        LATEST_RELEASE=$(curl -sL https://api.github.com/repos/ollama/ollama/releases/latest | jq -r .tag_name)
+        if [ -z "$LATEST_RELEASE" ]; then
+          echo "Failed to get latest release version"
+          exit 1
+        fi
         echo "Installing Ollama version: $LATEST_RELEASE"
-        wget -q https://github.com/ollama/ollama/releases/download/${LATEST_RELEASE}/ollama-linux-amd64
+        
+        DOWNLOAD_URL="https://github.com/ollama/ollama/releases/download/${LATEST_RELEASE}/ollama-linux-amd64"
+        echo "Downloading from: $DOWNLOAD_URL"
+        
+        # Try curl first, then wget as fallback
+        if ! curl -L -o ollama-linux-amd64 "$DOWNLOAD_URL"; then
+          if ! wget -O ollama-linux-amd64 "$DOWNLOAD_URL"; then
+            echo "Failed to download Ollama binary"
+            exit 1
+          fi
+        fi
+        
+        # Verify download
+        if [ ! -f ollama-linux-amd64 ]; then
+          echo "Binary not found after download"
+          exit 1
+        fi
+        
+        echo "Making binary executable..."
         chmod +x ollama-linux-amd64
+        echo "Moving binary to /usr/local/bin..."
         sudo mv ollama-linux-amd64 /usr/local/bin/ollama
         # Copy the binary to cache location
         cp /usr/local/bin/ollama ~/.cache/ollama/
