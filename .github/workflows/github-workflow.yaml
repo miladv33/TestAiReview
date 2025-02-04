@@ -156,12 +156,16 @@ jobs:
 
     - name: Test Ollama Hello
       run: |
-        response=$(curl -X POST http://localhost:11434/api/generate -d '{
+        echo "Ollama response:"
+        curl -s -X POST http://localhost:11434/api/generate -d '{
           "model": "llama2",
           "prompt": "Say hello!"
-        }')
-        echo "Ollama response:"
-        echo "$response"
+        }' | while read -r line; do
+          if echo "$line" | grep -q "response"; then
+            echo "$line" | jq -r .response | tr -d '\n'
+          fi
+        done
+        echo
 
     # Your build steps here
     - name: Build and Test
