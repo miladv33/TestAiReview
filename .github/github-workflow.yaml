@@ -1,0 +1,60 @@
+name: CI/CD with Ollama Cache
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  OLLAMA_MODELS_DIR: ~/.ollama/models
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    # Install Ollama
+    - name: Install Ollama
+      run: |
+        curl -fsSL https://ollama.com/install.sh | sh
+        ollama --version
+
+    # Cache Ollama models
+    - name: Cache Ollama Models
+      id: cache-ollama
+      uses: actions/cache@v3
+      with:
+        path: ~/.ollama/models
+        key: ${{ runner.os }}-ollama-${{ hashFiles('models.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-ollama-
+
+    # Download models if not cached
+    - name: Download Ollama Models
+      if: steps.cache-ollama.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p ~/.ollama/models
+        while IFS= read -r model || [[ -n "$model" ]]; do
+          if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
+            echo "Pulling model: $model"
+            ollama pull "$model"
+          fi
+        done < models.txt
+
+    # Your build steps here
+    - name: Build and Test
+      run: |
+        # Add your build commands here
+        echo "Building with cached Ollama models..."
+
+    # Optional: Upload models as artifacts for debugging
+    - name: Upload Models Directory
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: ollama-models
+        path: ~/.ollama/models
+        retention-days: 1
