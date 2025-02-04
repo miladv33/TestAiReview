@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     # Install Ollama
     - name: Install Ollama
@@ -25,7 +25,7 @@ jobs:
     # Cache Ollama models
     - name: Cache Ollama Models
       id: cache-ollama
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.ollama/models
         key: ${{ runner.os }}-ollama-${{ hashFiles('models.txt') }}
@@ -53,7 +53,7 @@ jobs:
     # Optional: Upload models as artifacts for debugging
     - name: Upload Models Directory
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ollama-models
         path: ~/.ollama/models
