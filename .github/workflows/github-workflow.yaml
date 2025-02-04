@@ -154,16 +154,14 @@ jobs:
           fi
         done < models.txt
 
-    # Verify models are available
-    - name: Verify Models
+    - name: Test Ollama Hello
       run: |
-        ls -la ~/.ollama/models/ || true
-        while IFS= read -r model || [[ -n "$model" ]]; do
-          if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
-            echo "Verifying model: $model"
-            ollama list | grep "$model" || echo "Model $model not found"
-          fi
-        done < models.txt
+        response=$(curl -X POST http://localhost:11434/api/generate -d '{
+          "model": "llama2",
+          "prompt": "Say hello!"
+        }')
+        echo "Ollama response:"
+        echo "$response"
 
     # Your build steps here
     - name: Build and Test
@@ -180,6 +178,7 @@ jobs:
           ~/.ollama/models/
           ollama.log
         retention-days: 1
+
 
     # Cleanup
     - name: Cleanup
