@@ -1,2 +1,2 @@
 # List your required Ollama models here
-llama2
+deepseek-r1:32b
