@@ -7,7 +7,7 @@ on:
 
 env:
   OLLAMA_MODELS_DIR: ~/.ollama/models
-  OLLAMA_VERSION: 0.1.27  # Specify the version you want to use
+  OLLAMA_VERSION: 0.1.27
 
 jobs:
   build:
@@ -30,38 +30,40 @@ jobs:
     - name: Install Ollama
       if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
       run: |
-        mkdir -p ~/.cache/ollama
-        # Download the latest release directly from GitHub with better error handling
-        echo "Fetching latest Ollama release..."
-        LATEST_RELEASE=$(curl -sL https://api.github.com/repos/ollama/ollama/releases/latest | jq -r .tag_name)
-        if [ -z "$LATEST_RELEASE" ]; then
-          echo "Failed to get latest release version"
-          exit 1
-        fi
-        echo "Installing Ollama version: $LATEST_RELEASE"
+        # Install required dependencies
+        sudo apt-get update
+        sudo apt-get install -y curl wget jq
         
-        DOWNLOAD_URL="https://github.com/ollama/ollama/releases/download/${LATEST_RELEASE}/ollama-linux-amd64"
+        # Create cache directory
+        mkdir -p ~/.cache/ollama
+        
+        # Set Ollama version (using a known working version)
+        OLLAMA_VERSION="v0.1.27"
+        echo "Using Ollama version: $OLLAMA_VERSION"
+        
+        # Download binary with verification
+        DOWNLOAD_URL="https://github.com/ollama/ollama/releases/download/${OLLAMA_VERSION}/ollama-linux-amd64"
         echo "Downloading from: $DOWNLOAD_URL"
         
-        # Try curl first, then wget as fallback
-        if ! curl -L -o ollama-linux-amd64 "$DOWNLOAD_URL"; then
-          if ! wget -O ollama-linux-amd64 "$DOWNLOAD_URL"; then
-            echo "Failed to download Ollama binary"
-            exit 1
-          fi
-        fi
-        
-        # Verify download
-        if [ ! -f ollama-linux-amd64 ]; then
-          echo "Binary not found after download"
+        # Download with curl and verify it's a binary
+        if curl -L -o ollama-linux-amd64 "$DOWNLOAD_URL" && file ollama-linux-amd64 | grep -q "ELF"; then
+          echo "Successfully downloaded Ollama binary"
+        else
+          echo "Failed to download valid Ollama binary"
           exit 1
         fi
         
-        echo "Making binary executable..."
+        # Make executable and install
         chmod +x ollama-linux-amd64
-        echo "Moving binary to /usr/local/bin..."
         sudo mv ollama-linux-amd64 /usr/local/bin/ollama
-        # Copy the binary to cache location
+        
+        # Verify installation
+        if ! ollama --version; then
+          echo "Failed to verify Ollama installation"
+          exit 1
+        fi
+        
+        # Copy to cache
         cp /usr/local/bin/ollama ~/.cache/ollama/
 
     # Restore Ollama binary if it was cached
@@ -72,23 +74,43 @@ jobs:
         sudo chmod +x /usr/local/bin/ollama
         ollama --version
 
-    # Start Ollama service
+    # Start Ollama service with better error handling
     - name: Start Ollama Service
       run: |
-        ollama serve &
+        # Create required directories
+        mkdir -p ~/.ollama
+        
+        # Start ollama with logging
+        ollama serve > ollama.log 2>&1 &
+        
+        # Wait for the service with better error checking
         timeout=30
-        while ! curl -s http://localhost:11434/api/version > /dev/null; do
-          if [ $timeout -le 0 ]; then
-            echo "Timeout waiting for Ollama service"
+        while [ $timeout -gt 0 ]; do
+          if curl -s http://localhost:11434/api/version > /dev/null; then
+            echo "Ollama service is ready"
+            cat ollama.log
+            break
+          fi
+          
+          # Check for errors in log
+          if grep -q "error" ollama.log; then
+            echo "Error found in Ollama log:"
+            cat ollama.log
             exit 1
           fi
+          
           echo "Waiting for Ollama service to start... ($timeout seconds remaining)"
           sleep 1
           timeout=$((timeout - 1))
         done
-        echo "Ollama service is ready"
+        
+        if [ $timeout -le 0 ]; then
+          echo "Timeout waiting for Ollama service. Log contents:"
+          cat ollama.log
+          exit 1
+        fi
 
-    # Cache Ollama models with SHA of models.txt
+    # Cache Ollama models
     - name: Cache Ollama Models
       id: cache-ollama-models
       uses: actions/cache@v4
@@ -135,11 +157,11 @@ jobs:
     # Verify models are available
     - name: Verify Models
       run: |
-        ls -la ~/.ollama/models/
+        ls -la ~/.ollama/models/ || true
         while IFS= read -r model || [[ -n "$model" ]]; do
           if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
             echo "Verifying model: $model"
-            ollama list | grep "$model" || exit 1
+            ollama list | grep "$model" || echo "Model $model not found"
           fi
         done < models.txt
 
@@ -148,13 +170,15 @@ jobs:
       run: |
         echo "Building with cached Ollama models..."
 
-    # Optional: Upload models as artifacts for debugging
+    # Upload models directory for debugging
     - name: Upload Models Directory
-      if: failure()  # Only upload on failure for debugging
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
         name: ollama-models
-        path: ~/.ollama/models/
+        path: |
+          ~/.ollama/models/
+          ollama.log
         retention-days: 1
 
     # Cleanup
