@@ -1,4 +1,2 @@
 # List your required Ollama models here
 llama2
-codellama
-mistral
