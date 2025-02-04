@@ -22,6 +22,25 @@ jobs:
         curl -fsSL https://ollama.com/install.sh | sh
         ollama --version
 
+    # Start Ollama service and verify it's running
+    - name: Start Ollama Service
+      run: |
+        # Start ollama in the background
+        ollama serve &
+        
+        # Wait for the service to be ready
+        timeout=30
+        while ! curl -s http://localhost:11434/api/version > /dev/null; do
+          if [ $timeout -le 0 ]; then
+            echo "Timeout waiting for Ollama service"
+            exit 1
+          fi
+          echo "Waiting for Ollama service to start... ($timeout seconds remaining)"
+          sleep 1
+          timeout=$((timeout - 1))
+        done
+        echo "Ollama service is ready"
+
     # Cache Ollama models
     - name: Cache Ollama Models
       id: cache-ollama
@@ -40,7 +59,18 @@ jobs:
         while IFS= read -r model || [[ -n "$model" ]]; do
           if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
             echo "Pulling model: $model"
-            ollama pull "$model"
+            # Add timeout and retry logic for model pulling
+            for i in {1..3}; do
+              if ollama pull "$model"; then
+                break
+              fi
+              if [ $i -eq 3 ]; then
+                echo "Failed to pull model $model after 3 attempts"
+                exit 1
+              fi
+              echo "Retry $i pulling model $model..."
+              sleep 5
+            done
           fi
         done < models.txt
 
@@ -56,5 +86,12 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: ollama-models
-        path: ~/.ollama/models
+        path: ~/.ollama/models/
         retention-days: 1
+
+    # Cleanup
+    - name: Cleanup
+      if: always()
+      run: |
+        pkill ollama || true
+        sleep 2
