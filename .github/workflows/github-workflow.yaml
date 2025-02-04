@@ -1,5 +1,4 @@
 name: CI/CD with Ollama Cache
-
 on:
   push:
     branches: [ main ]
@@ -8,27 +7,46 @@ on:
 
 env:
   OLLAMA_MODELS_DIR: ~/.ollama/models
+  OLLAMA_VERSION: 0.1.27  # Specify the version you want to use
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v4
 
-    # Install Ollama
+    # Cache Ollama binary
+    - name: Cache Ollama Binary
+      id: cache-ollama-binary
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ollama
+          /usr/local/bin/ollama
+        key: ${{ runner.os }}-ollama-${{ env.OLLAMA_VERSION }}
+
+    # Install Ollama only if not cached
     - name: Install Ollama
+      if: steps.cache-ollama-binary.outputs.cache-hit != 'true'
       run: |
+        mkdir -p ~/.cache/ollama
         curl -fsSL https://ollama.com/install.sh | sh
+        # Copy the binary to cache location
+        cp /usr/local/bin/ollama ~/.cache/ollama/
+
+    # Restore Ollama binary if it was cached
+    - name: Restore Ollama Binary
+      if: steps.cache-ollama-binary.outputs.cache-hit == 'true'
+      run: |
+        sudo cp ~/.cache/ollama/ollama /usr/local/bin/
+        sudo chmod +x /usr/local/bin/ollama
         ollama --version
 
-    # Start Ollama service and verify it's running
+    # Start Ollama service
     - name: Start Ollama Service
       run: |
-        # Start ollama in the background
         ollama serve &
-        
-        # Wait for the service to be ready
         timeout=30
         while ! curl -s http://localhost:11434/api/version > /dev/null; do
           if [ $timeout -le 0 ]; then
@@ -41,25 +59,24 @@ jobs:
         done
         echo "Ollama service is ready"
 
-    # Cache Ollama models
+    # Cache Ollama models with SHA of models.txt
     - name: Cache Ollama Models
-      id: cache-ollama
+      id: cache-ollama-models
       uses: actions/cache@v4
       with:
         path: ~/.ollama/models
-        key: ${{ runner.os }}-ollama-${{ hashFiles('models.txt') }}
+        key: ${{ runner.os }}-ollama-models-${{ hashFiles('models.txt') }}-${{ env.OLLAMA_VERSION }}
         restore-keys: |
-          ${{ runner.os }}-ollama-
+          ${{ runner.os }}-ollama-models-
 
     # Download models if not cached
     - name: Download Ollama Models
-      if: steps.cache-ollama.outputs.cache-hit != 'true'
+      if: steps.cache-ollama-models.outputs.cache-hit != 'true'
       run: |
         mkdir -p ~/.ollama/models
         while IFS= read -r model || [[ -n "$model" ]]; do
           if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
             echo "Pulling model: $model"
-            # Add timeout and retry logic for model pulling
             for i in {1..3}; do
               if ollama pull "$model"; then
                 break
@@ -74,15 +91,25 @@ jobs:
           fi
         done < models.txt
 
+    # Verify models are available
+    - name: Verify Models
+      run: |
+        ls -la ~/.ollama/models/
+        while IFS= read -r model || [[ -n "$model" ]]; do
+          if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
+            echo "Verifying model: $model"
+            ollama list | grep "$model" || exit 1
+          fi
+        done < models.txt
+
     # Your build steps here
     - name: Build and Test
       run: |
-        # Add your build commands here
         echo "Building with cached Ollama models..."
 
     # Optional: Upload models as artifacts for debugging
     - name: Upload Models Directory
-      if: always()
+      if: failure()  # Only upload on failure for debugging
       uses: actions/upload-artifact@v4
       with:
         name: ollama-models
