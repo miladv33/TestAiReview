@@ -49,3 +49,4 @@ Include a summary section with:
 - Final recommendation with reasoning
 
 Rate limiting: If the PR exceeds 1000 lines of code, break the review into logical sections and provide staged feedback.
+Also just generate it with MD format
