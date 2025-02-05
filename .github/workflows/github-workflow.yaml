@@ -101,9 +101,9 @@ jobs:
           echo "Cache contents:"
           find ~/.ollama/models -type f -ls
           
-          # Ensure models.txt exists
-          if [ ! -f "models.txt" ]; then
-            echo "Error: models.txt file not found"
+          # Ensure models.txt exists in .github/workflows
+          if [ ! -f ".github/workflows/models.txt" ]; then
+            echo "Error: models.txt file not found in .github/workflows directory"
             exit 1
           fi
           
@@ -112,7 +112,7 @@ jobs:
             if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
               required_models+=("$model")
             fi
-          done < models.txt
+          done < .github/workflows/models.txt
           
           # Check for model files in blobs directory
           declare -a models_to_download=()
@@ -203,7 +203,7 @@ jobs:
           fi
           
           # Read the first model from models.txt
-          MODEL=$(head -n 1 models.txt | tr -d '\r')
+          MODEL=$(head -n 1 .github/workflows/models.txt | tr -d '\r')
           if [ -z "$MODEL" ]; then
             echo "Error: No model specified in models.txt"
             exit 1
