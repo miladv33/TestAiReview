@@ -101,17 +101,18 @@ jobs:
           echo "Cache contents:"
           find ~/.ollama/models -type f -ls
           
-          declare -a required_models=()
-          if [ -f "models.txt" ]; then
-            while IFS= read -r model || [[ -n "$model" ]]; do
-              if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
-                required_models+=("$model")
-              fi
-            done < models.txt
-          else
-            required_models+=("llama2")
-            echo "llama2" > models.txt
+          # Ensure models.txt exists
+          if [ ! -f "models.txt" ]; then
+            echo "Error: models.txt file not found"
+            exit 1
           fi
+          
+          declare -a required_models=()
+          while IFS= read -r model || [[ -n "$model" ]]; do
+            if [[ ! -z "$model" && ! "$model" =~ ^# ]]; then
+              required_models+=("$model")
+            fi
+          done < models.txt
           
           # Check for model files in blobs directory
           declare -a models_to_download=()
@@ -201,6 +202,13 @@ jobs:
             exit 1
           fi
           
+          # Read the first model from models.txt
+          MODEL=$(head -n 1 models.txt | tr -d '\r')
+          if [ -z "$MODEL" ]; then
+            echo "Error: No model specified in models.txt"
+            exit 1
+          fi
+          
           # Read the prompt template
           PROMPT_TEMPLATE=$(cat .github/workflows/codereviewprompt.txt)
           
@@ -210,7 +218,7 @@ jobs:
           REVIEW_OUTPUT=$(curl -s -X POST http://localhost:11434/api/generate \
             -H 'Content-Type: application/json' \
             -d "{
-              \"model\": \"llama2\",
+              \"model\": \"$MODEL\",
               \"prompt\": $(echo "$PROMPT" | jq -Rs .),
               \"stream\": false
             }" | jq -r '.response' | sed 's/\*\s*$//')
