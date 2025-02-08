@@ -10,7 +10,7 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: your-username/deepseek-pr-review@v1
+      - uses: miladv33/deepseek-pr-review@v1
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Optional: Custom prompt
