@@ -23,7 +23,7 @@ jobs:
           echo "Files in .github/workflows:"
           ls -la .github/workflows/
       - name: Run PR Review with DeepSeek
-        uses: miladv33/deepseek-pr-review@v1.0.7
+        uses: miladv33/deepseek-pr-review@v1.0.8
         with:
           github-token: ${{ secrets.PRIVATE_KEY }}
           model: "deepseek-r1:1.5b"
