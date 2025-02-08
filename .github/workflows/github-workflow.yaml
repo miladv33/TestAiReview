@@ -24,4 +24,4 @@ jobs:
           # Optional: Provide a custom prompt directly in the workflow
           # custom-prompt: "Your custom prompt here"
           # Use 7B model
-          model: "deepseek-r1:7b"
+          model: "deepseek-r1:1.5b"
