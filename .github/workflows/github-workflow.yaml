@@ -1,17 +1,17 @@
-name: AI PR Review
+name: AI Code Review
 
 on:
   pull_request:
     types: [opened, synchronize]
 
 jobs:
-  review:
+  ai-review:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: write    # Needed for commenting on PRs
     steps:
-      - uses: miladv33/deepseek-pr-review@v1
+      - uses: miladv33/deepseek-pr-review@v1.0.0
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: Custom prompt
-          custom-prompt: "Please review these changes. Focus on code quality, potential bugs, and suggest improvements."
+          github-token: ${{ secrets.PRIVATE_KEY }}
+          # Optional: customize the review prompt
+          custom-prompt: "Please review this PR focusing on code quality, potential bugs, and security issues. Suggest improvements where necessary."
