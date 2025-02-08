@@ -1,4 +1,4 @@
-name: AI PR Review
+name: PR Review
 
 on:
   pull_request:
@@ -9,9 +9,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      contents: read
+
     steps:
-      - uses: your-username/deepseek-pr-review@v1
+      - uses: actions/checkout@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: Custom prompt
-          custom-prompt: "Please review these changes. Focus on code quality, potential bugs, and suggest improvements."
+          fetch-depth: 0
+
+      - name: Debug File Location
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in .github/workflows:"
+          ls -la .github/workflows/
+      - name: Run PR Review with DeepSeek
+        uses: miladv33/deepseek-pr-review@v1.0.8
+        with:
+          github-token: ${{ secrets.PRIVATE_KEY }}
+          model: "deepseek-r1:1.5b"
