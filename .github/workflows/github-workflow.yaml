@@ -16,6 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Debug File Location
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Files in .github/workflows:"
+          ls -la .github/workflows/
       - name: Run PR Review with DeepSeek
         uses: miladv33/deepseek-pr-review@v1.0.4
         with:
