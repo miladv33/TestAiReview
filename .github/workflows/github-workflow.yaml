@@ -16,65 +16,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PR Changes
-        id: pr-changes
-        run: |
-          echo "=== Getting PR Changes ==="
-          echo "Getting changed files..."
-          echo "Changed files:" > pr_changes.txt
-          git diff --name-status ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | tee -a pr_changes.txt
-
-          echo -e "\nGetting detailed changes..."
-          echo -e "\nDetailed changes:" >> pr_changes.txt
-          git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | tee -a pr_changes.txt
-
-          echo -e "\n=== Full PR Changes Content ==="
-          cat pr_changes.txt
-
-          # Debug: Check if we have changes
-          if [ ! -s pr_changes.txt ]; then
-            echo "Warning: pr_changes.txt is empty!"
-          fi
-
-          {
-            echo 'PR_CHANGES<<EOF'
-            cat pr_changes.txt
-            echo 'EOF'
-          } >> $GITHUB_ENV
-
-      # Debug step to verify environment variable
-      - name: Debug PR Changes
-        run: |
-          echo "PR Changes Environment Variable Content:"
-          echo "$PR_CHANGES"
-          echo "====="
-          echo "File content:"
-          cat pr_changes.txt
-
-      - name: Run PR Review with DeepSeek
-        uses: miladv33/deepseek-pr-review@v1.0.0
-        id: deepseek-review
+      # Replace YOUR_USERNAME/YOUR_REPO with your actual GitHub username and repository name
+        name: Run PR Review with DeepSeek
+      - uses: miladv33/deepseek-pr-review@v1.0.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          model: "deepseek-r1:1.5b"
-
-      # Debug step to check the DeepSeek output
-      - name: Debug DeepSeek Output
-        if: always()
-        run: |
-          echo "DeepSeek Review Step Output:"
-          echo "${{ steps.deepseek-review.outputs.response }}"
-
-      # Fallback comment if review is empty
-      - name: Post Fallback Comment
-        if: ${{ !steps.deepseek-review.outputs.response }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '⚠️ The AI review process encountered an issue. Please check the action logs for more details.'
-            });
+          # Optional: Provide a custom prompt directly in the workflow
+          # custom-prompt: "Your custom prompt here"
+          # Use 7B model
+          model: "deepseek-r1:7b"
